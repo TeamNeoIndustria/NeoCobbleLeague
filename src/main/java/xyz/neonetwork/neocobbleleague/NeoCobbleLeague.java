@@ -11,7 +11,6 @@ import net.neoforged.neoforge.event.RegisterCommandsEvent;
 import net.neoforged.neoforge.event.server.ServerStartedEvent;
 import xyz.neonetwork.neocobbleleague.common.commands.MainCommand;
 import xyz.neonetwork.neocobbleleague.common.utils.ConfigFile;
-import xyz.neonetwork.neocobbleleague.events.EventDefinition;
 import xyz.neonetwork.neocobbleleague.events.commands.EventCommand;
 import xyz.neonetwork.neocobbleleague.events.json.EventDefinitionJson;
 

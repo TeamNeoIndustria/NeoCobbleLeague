@@ -6,13 +6,7 @@ import xyz.neonetwork.neocobbleleague.events.enums.EventPhase;
 import xyz.neonetwork.neocobbleleague.events.records.SpawnPoint;
 import xyz.neonetwork.neocobbleleague.events.specs.PokemonSpec;
 
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.OptionalInt;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 
 public class EventInstance {
     private final UUID instanceId;

@@ -1,8 +1,8 @@
 package xyz.neonetwork.neocobbleleague.events;
 
 import xyz.neonetwork.neocobbleleague.events.enums.EventEndReason;
-import xyz.neonetwork.neocobbleleague.events.enums.SpawnMode;
 import xyz.neonetwork.neocobbleleague.events.enums.EventType;
+import xyz.neonetwork.neocobbleleague.events.enums.SpawnMode;
 import xyz.neonetwork.neocobbleleague.events.records.SpawnPoint;
 import xyz.neonetwork.neocobbleleague.events.specs.EventSpec;
 import xyz.neonetwork.neocobbleleague.events.specs.PokemonSpec;
@@ -63,7 +63,7 @@ public class EventDefinition {
         this.lifetimeTicks = lifetimeTicks;
         this.cooldownTicks = cooldownTicks;
         this.weight = weight;
-        
+
         this.spec = Objects.requireNonNull(spec, "spec");
 
         this.spawnMode = Objects.requireNonNull(spawnMode, "spawnMode");
