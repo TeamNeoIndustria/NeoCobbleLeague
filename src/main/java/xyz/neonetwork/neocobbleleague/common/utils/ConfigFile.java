@@ -183,7 +183,7 @@ public class ConfigFile {
     }
 
     public void pushToFile(JsonObject objectToPush) {
-        Gson gson = new GsonBuilder().setPrettyPrinting().create();
+        Gson gson = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
 
         try (FileWriter writer = new FileWriter(this.path + "/" + this.fileName, StandardCharsets.UTF_8)) {
             gson.toJson(objectToPush, writer);
@@ -221,15 +221,4 @@ public class ConfigFile {
 
         return jsonObj.get(path);
     }
-
-    public boolean isModEnabled() {
-        if (jsonObj == null) {
-            NeoConstants.LOGGER.error("Config was not loaded before grabbing data.");
-
-            return true;
-        }
-
-        return jsonObj.get("Enabled").getAsBoolean();
-    }
-
 }

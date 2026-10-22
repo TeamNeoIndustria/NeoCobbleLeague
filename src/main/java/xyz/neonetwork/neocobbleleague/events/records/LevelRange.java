@@ -10,6 +10,6 @@ public record LevelRange(int min, int max) {
     }
 
     public int roll(RandomSource random) {
-        return random.nextInt(min, max);
+        return random.nextInt(min, max + 1);
     }
 }

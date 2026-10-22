@@ -4,5 +4,5 @@ public enum SpawnMode {
     PLAYER,
     NEAR_PLAYER,
     REGION,
-    LOCATION;
+    FIXED
 }

@@ -4,5 +4,5 @@ public enum EventPhase {
     PENDING,
     ANNOUNCED,
     ACTIVE,
-    ENDED;
+    ENDED
 }

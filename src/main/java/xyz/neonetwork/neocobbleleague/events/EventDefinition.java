@@ -3,10 +3,10 @@ package xyz.neonetwork.neocobbleleague.events;
 import xyz.neonetwork.neocobbleleague.events.enums.EventEndReason;
 import xyz.neonetwork.neocobbleleague.events.enums.SpawnMode;
 import xyz.neonetwork.neocobbleleague.events.enums.EventType;
-import xyz.neonetwork.neocobbleleague.events.records.LevelRange;
 import xyz.neonetwork.neocobbleleague.events.records.SpawnPoint;
 import xyz.neonetwork.neocobbleleague.events.specs.EventSpec;
-import xyz.neonetwork.neocobblelib.cobblemon.CobblemonSpecies;
+import xyz.neonetwork.neocobbleleague.events.specs.PokemonSpec;
+import xyz.neonetwork.neocobbleleague.events.specs.TrainerSpec;
 
 import java.util.List;
 import java.util.Map;
@@ -46,6 +46,9 @@ public class EventDefinition {
                     EventSpec spec, SpawnMode spawnMode, List<SpawnPoint> spawnPoints,
                     String announceMessage, String spawnMessage,
                     Map<EventEndReason, String> endMessages) {
+        if ((type == EventType.POKEMON && spec instanceof TrainerSpec) || (type == EventType.TRAINER && spec instanceof PokemonSpec)) {
+            throw new IllegalArgumentException("Cannot have mismatching Type and Specs. [" + id + "]");
+        }
 
         this.id = Objects.requireNonNull(id, "id");
         this.displayName = Objects.requireNonNull(displayName, "displayName");
@@ -61,15 +64,17 @@ public class EventDefinition {
         this.cooldownTicks = cooldownTicks;
         this.weight = weight;
 
-        this.spec = spec;
+
+
+        this.spec = Objects.requireNonNull(spec, "spec");
 
         this.spawnMode = Objects.requireNonNull(spawnMode, "spawnMode");
+
+        this.spawnPoints = List.copyOf(spawnPoints);
 
         if (spawnPoints.isEmpty()) {
             throw new IllegalArgumentException("Event " + id + " needs at least one spawn point");
         }
-
-        this.spawnPoints = List.copyOf(spawnPoints);
 
         this.announceMessage = Objects.requireNonNull(announceMessage, "announceMessage");
         this.spawnMessage = Objects.requireNonNull(spawnMessage, "spawnMessage");
