@@ -5,6 +5,7 @@ import xyz.neonetwork.neocobbleleague.events.enums.SpawnMode;
 import xyz.neonetwork.neocobbleleague.events.enums.EventType;
 import xyz.neonetwork.neocobbleleague.events.records.LevelRange;
 import xyz.neonetwork.neocobbleleague.events.records.SpawnPoint;
+import xyz.neonetwork.neocobbleleague.events.specs.EventSpec;
 import xyz.neonetwork.neocobblelib.cobblemon.CobblemonSpecies;
 
 import java.util.List;
@@ -28,8 +29,7 @@ public class EventDefinition {
     private final int weight;
 
     // Type Specifics
-    private final CobblemonSpecies species;
-    private final LevelRange levelRange;
+    private final EventSpec spec;
 
     // Spawns
     private final SpawnMode spawnMode;
@@ -43,8 +43,7 @@ public class EventDefinition {
     public EventDefinition(String id, String displayName, boolean enabled,
                     EventType type,
                     int countdownTicks, int lifetimeTicks, int cooldownTicks, int weight,
-                    CobblemonSpecies species, int levelMin, int levelMax,
-                    SpawnMode spawnMode, List<SpawnPoint> spawnPoints,
+                    EventSpec spec, SpawnMode spawnMode, List<SpawnPoint> spawnPoints,
                     String announceMessage, String spawnMessage,
                     Map<EventEndReason, String> endMessages) {
 
@@ -62,8 +61,7 @@ public class EventDefinition {
         this.cooldownTicks = cooldownTicks;
         this.weight = weight;
 
-        this.species = Objects.requireNonNull(species, "species");
-        this.levelRange = new LevelRange(levelMin, levelMax);
+        this.spec = spec;
 
         this.spawnMode = Objects.requireNonNull(spawnMode, "spawnMode");
 
@@ -110,12 +108,8 @@ public class EventDefinition {
         return weight;
     }
 
-    public CobblemonSpecies getSpecies() {
-        return species;
-    }
-
-    public LevelRange getLevelRange() {
-        return levelRange;
+    public EventSpec getSpec() {
+        return spec;
     }
 
     public SpawnMode getSpawnMode() {
