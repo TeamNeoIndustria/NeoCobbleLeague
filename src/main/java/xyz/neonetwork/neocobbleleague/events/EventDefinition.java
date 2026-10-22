@@ -63,9 +63,7 @@ public class EventDefinition {
         this.lifetimeTicks = lifetimeTicks;
         this.cooldownTicks = cooldownTicks;
         this.weight = weight;
-
-
-
+        
         this.spec = Objects.requireNonNull(spec, "spec");
 
         this.spawnMode = Objects.requireNonNull(spawnMode, "spawnMode");

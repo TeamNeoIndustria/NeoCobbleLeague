@@ -85,7 +85,7 @@ public class ConfigFile {
 
         configObject.addProperty("_comment", "Times are in seconds. Use & for colour codes. {name} = event display name, {player} = the player involved. Type is POKEMON (needs Species + LevelRange) or TRAINER (needs TrainerName, from NeoCobbleLib's trainers.json). Events are ignored while Enabled is false.");
 
-        // ---------- Pokemon Event ----------
+        // Pokemon Event
         JsonObject pokemonEvent = new JsonObject();
         pokemonEvent.addProperty("Id", "example_articuno");
         pokemonEvent.addProperty("DisplayName", "&bArticuno");
@@ -129,7 +129,7 @@ public class ConfigFile {
 
         eventArray.add(pokemonEvent);
 
-        // ---------- Trainer Event ----------
+        // Trainer Event
         JsonObject trainerEvent = new JsonObject();
         trainerEvent.addProperty("Id", "example_brock");
         trainerEvent.addProperty("DisplayName", "&6Gym Leader Brock");
