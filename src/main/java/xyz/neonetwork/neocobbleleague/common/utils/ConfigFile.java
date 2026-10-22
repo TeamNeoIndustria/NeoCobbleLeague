@@ -1,7 +1,8 @@
 package xyz.neonetwork.neocobbleleague.common.utils;
+
 import com.google.gson.*;
 import org.apache.commons.io.IOUtils;
-import xyz.neonetwork.neocobblelib.NeoConstants;
+import xyz.neonetwork.neocobbleleague.NeoConstants;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
