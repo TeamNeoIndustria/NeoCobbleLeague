@@ -24,7 +24,11 @@ public class NeoCobbleLeague {
         NeoConstants.EVENTS_CONFIG = new ConfigFile("events.json");
 
         // Loading
-        NeoConstants.EVENTS_CONFIG.loadConfig();
+        boolean success = NeoConstants.EVENTS_CONFIG.loadConfig();
+
+        if (!success) {
+            NeoConstants.LOGGER.error("Error loading Events Config.");
+        }
 
         // Events
         NeoForge.EVENT_BUS.register(EventListener.class);

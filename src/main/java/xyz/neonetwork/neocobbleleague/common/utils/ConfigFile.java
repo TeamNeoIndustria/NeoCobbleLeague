@@ -52,7 +52,7 @@ public class ConfigFile {
         }
     }
 
-    public void loadConfig() {
+    public boolean loadConfig() {
         this.file = new File(this.path + "/" + this.fileName);
 
         if (file.length() == 0) {
@@ -72,7 +72,7 @@ public class ConfigFile {
             }
 
             if (newObj == null) {
-                return;
+                return false;
             }
 
             this.jsonObj = newObj;
@@ -80,6 +80,8 @@ public class ConfigFile {
             NeoConstants.LOGGER.error("Error loading config file. Continuing to create new...");
             NeoConstants.LOGGER.error(exception.getMessage());
         }
+
+        return true;
     }
 
     public void setEventsConfig() {
