@@ -5,12 +5,15 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.util.RandomSource;
 import xyz.neonetwork.neocobbleleague.NeoConstants;
 import xyz.neonetwork.neocobbleleague.common.utils.ConfigFile;
 import xyz.neonetwork.neocobbleleague.events.enums.EventEndReason;
 import xyz.neonetwork.neocobbleleague.events.enums.EventPhase;
 import xyz.neonetwork.neocobbleleague.events.enums.EventStartResult;
 import xyz.neonetwork.neocobbleleague.events.json.EventDefinitionJson;
+import xyz.neonetwork.neocobbleleague.events.records.SpawnPoint;
 import xyz.neonetwork.neocobbleleague.events.specs.TrainerSpec;
 import xyz.neonetwork.neocobblelib.cobblemon.CobblemonTrainerManager;
 
@@ -110,7 +113,14 @@ public class EventManager {
             }
         }
 
-        EventInstance instance = new EventInstance(definition, server.overworld().getRandom());
+        RandomSource random = server.overworld().getRandom();
+        Optional<SpawnPoint> spawnPoint = pickSpawnPoint(server, definition, random);
+
+        if (spawnPoint.isEmpty()) {
+            return EventStartResult.NO_VALID_SPAWN;
+        }
+
+        EventInstance instance = new EventInstance(definition, spawnPoint.get(), server.overworld().getRandom());
         active.put(instance.getInstanceId(), instance);
 
         advanceEvent(server, instance);
@@ -184,7 +194,7 @@ public class EventManager {
         instance.getDefinition().getEndMessage(reason)
                 .ifPresent(message -> broadcast(server, message, instance, "someone"));
 
-        if (reason != EventEndReason.CANCELLED && instance.getDefinition().getCooldownTicks() > 0) {
+        if (reason != EventEndReason.CANCELLED && reason != EventEndReason.SPAWN_FAILED && instance.getDefinition().getCooldownTicks() > 0) {
             cooldownEnds.put(instance.getDefinitionId(),
                     server.overworld().getGameTime() + instance.getDefinition().getCooldownTicks());
         }
@@ -192,6 +202,23 @@ public class EventManager {
         // TODO: Kill npc if remaining
 
         return true;
+    }
+
+    private static Optional<SpawnPoint> pickSpawnPoint(MinecraftServer server, EventDefinition definition, RandomSource random) {
+        List<SpawnPoint> candidates = new ArrayList<>(definition.getSpawnPoints());
+        Collections.shuffle(candidates, new Random(random.nextLong()));
+
+        for (SpawnPoint point : candidates) {
+            Optional<ServerLevel> level = SpawnChecks.resolveLevel(server, point);
+
+            if (level.isPresent() && SpawnChecks.isUsable(level.get(), point)) {
+                return Optional.of(point);
+            }
+
+            NeoConstants.LOGGER.warn("Event '{}': spawn point {} is not usable, trying another.", definition.getId(), point);
+        }
+
+        return Optional.empty();
     }
 
     public static void tick(MinecraftServer server) {

@@ -5,5 +5,6 @@ public enum EventEndReason {
     DEFEATED,
     DESPAWNED,
     TIMED_OUT,
-    CANCELLED
+    CANCELLED,
+    SPAWN_FAILED
 }

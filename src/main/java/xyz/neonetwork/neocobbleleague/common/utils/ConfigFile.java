@@ -79,6 +79,7 @@ public class ConfigFile {
         } catch (IOException exception) {
             NeoConstants.LOGGER.error("Error loading config file. Continuing to create new...");
             NeoConstants.LOGGER.error(exception.getMessage());
+            return false;
         }
 
         return true;
@@ -124,10 +125,12 @@ public class ConfigFile {
         pokemonMessages.addProperty("Spawn", "&c{name} has appeared!");
 
         JsonObject pokemonEnd = new JsonObject();
-        pokemonEnd.addProperty("CAPTURED", "&a{player} caught {name}!");
-        pokemonEnd.addProperty("DEFEATED", "&a{player} defeated {name}!");
-        pokemonEnd.addProperty("DESPAWNED", "&7{name} wandered off.");
-        pokemonEnd.addProperty("TIMED_OUT", "&7{name} disappeared into the distance.");
+        pokemonEnd.addProperty("CAPTURED", "&a{player} caught {name}&a!");
+        pokemonEnd.addProperty("DEFEATED", "&a{player} defeated {name}&a!");
+        pokemonEnd.addProperty("DESPAWNED", "{name} &7wandered off.");
+        pokemonEnd.addProperty("TIMED_OUT", "{name} &7disappeared into the distance.");
+        pokemonEnd.addProperty("CANCELLED", "&cEvent has been cancelled.");
+        pokemonEnd.addProperty("SPAWN_FAILED", "&cNo valid spawn points for {name}&c.");
 
         pokemonMessages.add("End", pokemonEnd);
         pokemonEvent.add("Messages", pokemonMessages);
@@ -166,6 +169,8 @@ public class ConfigFile {
         trainerEnd.addProperty("DEFEATED", "&a{player} defeated {name}!");
         trainerEnd.addProperty("DESPAWNED", "&7{name} has left.");
         trainerEnd.addProperty("TIMED_OUT", "&7{name} grew tired of waiting.");
+        trainerEnd.addProperty("CANCELLED", "&cEvent has been cancelled.");
+        trainerEnd.addProperty("SPAWN_FAILED", "&cNo valid spawn points for {name}&c.");
 
         trainerMessages.add("End", trainerEnd);
         trainerEvent.add("Messages", trainerMessages);

@@ -1,6 +1,9 @@
 package xyz.neonetwork.neocobbleleague.common.utils;
 
 public final class TimeUtils {
+    private TimeUtils() {
+    }
+
     public static String formatTicks(long ticks) {
         long totalSeconds = Math.max(0, (ticks + 19) / 20);
 

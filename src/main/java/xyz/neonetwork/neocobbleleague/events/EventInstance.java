@@ -20,12 +20,12 @@ public class EventInstance {
     private UUID entityUuid;
     private final Set<UUID> participants = new HashSet<>();
 
-    public EventInstance(EventDefinition definition, RandomSource random) {
+    public EventInstance(EventDefinition definition, SpawnPoint spawnPoint, RandomSource random) {
         this.definition = Objects.requireNonNull(definition, "definition");
         this.instanceId = UUID.randomUUID();
 
         // Pick the spawn point and roll the level once, so they survive a restart
-        this.spawnPoint = definition.getSpawnPoints().get(random.nextInt(definition.getSpawnPoints().size()));
+        this.spawnPoint = spawnPoint;
 
         if (definition.getSpec() instanceof PokemonSpec pokemonSpec) {
             this.rolledLevel = OptionalInt.of(pokemonSpec.levelRange().roll(random));

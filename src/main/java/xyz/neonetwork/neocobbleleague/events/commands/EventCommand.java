@@ -3,13 +3,16 @@ package xyz.neonetwork.neocobbleleague.events.commands;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.suggestion.SuggestionProvider;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.Commands;
+import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import xyz.neonetwork.neocobbleleague.NeoConstants;
 import xyz.neonetwork.neocobbleleague.common.utils.TimeUtils;
 import xyz.neonetwork.neocobbleleague.events.EventDefinition;
+import xyz.neonetwork.neocobbleleague.events.EventInstance;
 import xyz.neonetwork.neocobbleleague.events.EventManager;
 import xyz.neonetwork.neocobbleleague.events.enums.EventStartResult;
 
@@ -17,6 +20,12 @@ import java.util.Collection;
 
 public class EventCommand {
     public static String commandName = "leagueevent";
+    private static final SuggestionProvider<CommandSourceStack> EVENT_IDS = (context, builder) ->
+            SharedSuggestionProvider.suggest(
+                    EventManager.getDefinitions().stream().map(EventDefinition::getId), builder);
+    private static final SuggestionProvider<CommandSourceStack> ACTIVE_EVENT_IDS = (context, builder) ->
+            SharedSuggestionProvider.suggest(
+                    EventManager.getActive().stream().map(EventInstance::getDefinitionId), builder);
 
     public static void register(CommandDispatcher<CommandSourceStack> dispatcher) {
         dispatcher.register(
@@ -29,7 +38,8 @@ public class EventCommand {
                         .then(
                                 Commands.literal("start")
                                         .requires(source -> source.hasPermission(2))
-                                        .then(Commands.argument("eventId", StringArgumentType.string())
+                                        .then(Commands.argument("eventId", StringArgumentType.word())
+                                                .suggests(EVENT_IDS)
                                                 .executes(context -> startOption(context, false))
                                                 .then(Commands.literal("force")
                                                         .executes(context -> startOption(context, true))))
@@ -37,13 +47,15 @@ public class EventCommand {
                         .then(
                                 Commands.literal("stop")
                                         .requires(source -> source.hasPermission(2))
-                                        .then(Commands.argument("eventId", StringArgumentType.string())
+                                        .then(Commands.argument("eventId", StringArgumentType.word())
+                                                .suggests(ACTIVE_EVENT_IDS)
                                                 .executes(EventCommand::stopOption))
                         )
                         .then(
                                 Commands.literal("skip")
                                         .requires(source -> source.hasPermission(2))
-                                        .then(Commands.argument("eventId", StringArgumentType.string())
+                                        .then(Commands.argument("eventId", StringArgumentType.word())
+                                                .suggests(ACTIVE_EVENT_IDS)
                                                 .executes(EventCommand::skipOption))
                         )
                         .then(
@@ -100,6 +112,9 @@ public class EventCommand {
                             + TimeUtils.formatTicks(EventManager.getCooldownRemaining(server, eventId))
                             + " remaining. Use force to start it anyway."));
 
+            case NO_VALID_SPAWN -> source.sendFailure(
+                    Component.literal("Unable to find valid spawn point for " + eventId + ", please check console logs."));
+
             case STARTED -> source.sendSuccess(
                     () -> Component.literal(eventId + " has successfully started."), true);
         }
@@ -137,18 +152,24 @@ public class EventCommand {
 
     public static int listOption(CommandContext<CommandSourceStack> context) {
         CommandSourceStack source = context.getSource();
+        MinecraftServer server = source.getServer();
         Collection<EventDefinition> definitions = EventManager.getDefinitions();
 
-        source.sendSystemMessage(Component.literal("Loaded Events (" + definitions.size() + "):"));
+        source.sendSuccess(() -> Component.literal("Loaded Events (" + definitions.size() + "):"), false);
 
-        definitions.forEach(definition -> {
-            context.getSource().sendSystemMessage(Component.literal("-> Id: " + definition.getId()));
-            context.getSource().sendSystemMessage(Component.literal("-> Type: " + definition.getType().name()));
-            context.getSource().sendSystemMessage(Component.literal("-> Enabled: " + definition.isEnabled()));
-            context.getSource().sendSystemMessage(Component.literal("-> Cooldown: " + definition.getCooldownTicks()));
-            context.getSource().sendSystemMessage(Component.literal("-> Countdown: " + definition.getCountdownTicks()));
-            context.getSource().sendSystemMessage(Component.literal(""));
-        });
+        for (EventDefinition definition : definitions) {
+            String status = EventManager.findActive(definition.getId())
+                    .map(instance -> "running (" + instance.getPhase() + ", "
+                            + TimeUtils.formatTicks(instance.getTicksRemaining()) + " left)")
+                    .orElseGet(() -> {
+                        long cooldown = EventManager.getCooldownRemaining(server, definition.getId());
+                        return cooldown > 0 ? "cooldown (" + TimeUtils.formatTicks(cooldown) + " left)" : "idle";
+                    });
+
+            source.sendSuccess(() -> Component.literal("-> " + definition.getId()
+                    + " [" + definition.getType() + ", " + (definition.isEnabled() ? "enabled" : "disabled") + "] "
+                    + status), false);
+        }
 
         return 1;
     }

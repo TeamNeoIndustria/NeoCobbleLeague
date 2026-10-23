@@ -5,5 +5,6 @@ public enum EventStartResult {
     ALREADY_ACTIVE,
     DISABLED,
     ON_COOLDOWN,
-    STARTED
+    STARTED,
+    NO_VALID_SPAWN
 }
