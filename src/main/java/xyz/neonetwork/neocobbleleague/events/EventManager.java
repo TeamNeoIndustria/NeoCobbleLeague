@@ -120,7 +120,7 @@ public class EventManager {
             return EventStartResult.NO_VALID_SPAWN;
         }
 
-        EventInstance instance = new EventInstance(definition, spawnPoint.get(), server.overworld().getRandom());
+        EventInstance instance = new EventInstance(definition, spawnPoint.get(), random);
         active.put(instance.getInstanceId(), instance);
 
         advanceEvent(server, instance);
@@ -209,13 +209,13 @@ public class EventManager {
         Collections.shuffle(candidates, new Random(random.nextLong()));
 
         for (SpawnPoint point : candidates) {
-            Optional<ServerLevel> level = SpawnChecks.resolveLevel(server, point);
+            Optional<String> problem = SpawnChecks.findProblem(server, point);
 
-            if (level.isPresent() && SpawnChecks.isUsable(level.get(), point)) {
+            if (problem.isEmpty()) {
                 return Optional.of(point);
             }
 
-            NeoConstants.LOGGER.warn("Event '{}': spawn point {} is not usable, trying another.", definition.getId(), point);
+            NeoConstants.LOGGER.warn("Event '{}': spawn point {} is unusable ({}).", definition.getId(), point, problem.get());
         }
 
         return Optional.empty();

@@ -104,7 +104,7 @@ A mod to add player gyms, events and tournaments to Cobblemon.
 [[dependencies.${mod_id}]]
     modId="neocobblelib"
     type="required"
-    versionRange="[1.0.0,)"
+    versionRange="[1.1.0,)"
     ordering="AFTER"
     side="BOTH"
 

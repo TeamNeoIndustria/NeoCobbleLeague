@@ -46,4 +46,37 @@ public final class SpawnChecks {
         return level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
                 && level.getBlockState(head).getCollisionShape(level, head).isEmpty();
     }
+
+    public static Optional<String> findProblem(MinecraftServer server, SpawnPoint point) {
+        Optional<ServerLevel> resolved = resolveLevel(server, point);
+
+        if (resolved.isEmpty()) {
+            return Optional.of("dimension '" + point.dimension() + "' does not exist");
+        }
+
+        ServerLevel level = resolved.get();
+        BlockPos feet = BlockPos.containing(point.x(), point.y(), point.z());
+        BlockPos head = feet.above();
+
+        if (!level.isInWorldBounds(feet) || !level.isInWorldBounds(head)) {
+            return Optional.of("outside the world height limits");
+        }
+
+        if (!level.getWorldBorder().isWithinBounds(feet)) {
+            return Optional.of("outside the world border");
+        }
+
+        level.getChunkAt(feet);
+
+        if (level.getFluidState(feet).is(FluidTags.LAVA) || level.getFluidState(head).is(FluidTags.LAVA)) {
+            return Optional.of("lava at the spawn position");
+        }
+
+        if (!level.getBlockState(feet).getCollisionShape(level, feet).isEmpty()
+                || !level.getBlockState(head).getCollisionShape(level, head).isEmpty()) {
+            return Optional.of("blocked by solid blocks");
+        }
+
+        return Optional.empty();
+    }
 }
