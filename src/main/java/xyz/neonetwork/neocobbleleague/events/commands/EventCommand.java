@@ -1,5 +1,6 @@
 package xyz.neonetwork.neocobbleleague.events.commands;
 
+import com.cobblemon.mod.common.entity.npc.NPCEntity;
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
@@ -9,14 +10,19 @@ import net.minecraft.commands.Commands;
 import net.minecraft.commands.SharedSuggestionProvider;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import xyz.neonetwork.neocobbleleague.NeoConstants;
 import xyz.neonetwork.neocobbleleague.common.utils.TimeUtils;
 import xyz.neonetwork.neocobbleleague.events.EventDefinition;
 import xyz.neonetwork.neocobbleleague.events.EventInstance;
 import xyz.neonetwork.neocobbleleague.events.EventManager;
 import xyz.neonetwork.neocobbleleague.events.enums.EventStartResult;
+import xyz.neonetwork.neocobblelib.cobblemon.CobblemonTrainerManager;
+import xyz.neonetwork.neocobblelib.utils.NPCUtils;
 
 import java.util.Collection;
+import java.util.Objects;
+import java.util.Optional;
 
 public class EventCommand {
     public static String commandName = "leagueevent";
@@ -34,6 +40,11 @@ public class EventCommand {
                                 Commands.literal("reload")
                                         .requires(source -> source.hasPermission(2))
                                                 .executes(EventCommand::reloadOption)
+                        )
+                        .then(
+                                Commands.literal("test")
+                                        .requires(source -> source.hasPermission(2))
+                                                .executes(EventCommand::testOption)
                         )
                         .then(
                                 Commands.literal("start")
@@ -85,6 +96,35 @@ public class EventCommand {
 
         EventManager.getDefinitions().forEach(eventDefinition ->
                 source.sendSuccess(() -> Component.literal("-> " + eventDefinition.getId()), false));
+
+        return 1;
+    }
+
+    public static int testOption(CommandContext<CommandSourceStack> context) {
+        CommandSourceStack source = context.getSource();
+        source.sendSuccess(() -> Component.literal("Testing Methods..."), false);
+
+        if (source.getEntity() instanceof ServerPlayer player) {
+            Optional<NPCEntity> opt = NPCUtils.spawnTrainer(
+                    player.serverLevel(),
+                    CobblemonTrainerManager.getTrainer("Brock"),
+                    player.getX(), player.getY(), player.getZ(),
+                    0F, (npc) -> {
+                        player.sendSystemMessage(Component.literal("Before Spawn"));
+                        npc.addTag("neocobbleleague_event:test");
+                    }
+            );
+
+            if (opt.isEmpty()) {
+                player.sendSystemMessage(Component.literal("Failed to spawn trainer."));
+                return 0;
+            }
+
+            NPCEntity npc = opt.get();
+
+            player.sendSystemMessage(Component.literal("IsPersistenceRequired?: " + npc.isPersistenceRequired()));
+            player.sendSystemMessage(Component.literal("Party?: " + Objects.requireNonNull(npc.getParty())));
+        }
 
         return 1;
     }

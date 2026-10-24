@@ -7,6 +7,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
 import xyz.neonetwork.neocobbleleague.NeoConstants;
 import xyz.neonetwork.neocobbleleague.common.utils.ConfigFile;
 import xyz.neonetwork.neocobbleleague.events.enums.EventEndReason;
@@ -14,12 +15,18 @@ import xyz.neonetwork.neocobbleleague.events.enums.EventPhase;
 import xyz.neonetwork.neocobbleleague.events.enums.EventStartResult;
 import xyz.neonetwork.neocobbleleague.events.json.EventDefinitionJson;
 import xyz.neonetwork.neocobbleleague.events.records.SpawnPoint;
+import xyz.neonetwork.neocobbleleague.events.specs.PokemonSpec;
 import xyz.neonetwork.neocobbleleague.events.specs.TrainerSpec;
+import xyz.neonetwork.neocobblelib.cobblemon.CobblemonPresetTrainers;
 import xyz.neonetwork.neocobblelib.cobblemon.CobblemonTrainerManager;
+import xyz.neonetwork.neocobblelib.cobblemon.CobblemonUtils;
+import xyz.neonetwork.neocobblelib.utils.NPCUtils;
 
 import java.util.*;
 
 public class EventManager {
+
+    private static final String ENTITY_TAG_PREFIX = "neocobbleleague_event:";
 
     private static volatile Map<String, EventDefinition> definitions = Map.of();
 
@@ -177,7 +184,14 @@ public class EventManager {
 
         switch (instance.getPhase()) {
             case ANNOUNCED -> broadcast(server, definition.getAnnounceMessage(), instance, "someone");
-            case ACTIVE -> broadcast(server, definition.getSpawnMessage(), instance, "someone");
+            case ACTIVE -> {
+                if (!spawnEntity(server, instance)) {
+                    endEvent(server, instance, EventEndReason.SPAWN_FAILED);
+                    return true;
+                }
+
+                broadcast(server, definition.getSpawnMessage(), instance, "someone");
+            }
             default -> { }
         }
 
@@ -199,9 +213,15 @@ public class EventManager {
                     server.overworld().getGameTime() + instance.getDefinition().getCooldownTicks());
         }
 
-        // TODO: Kill npc if remaining
+        removeEntity(server, instance);
 
         return true;
+    }
+
+    public static void cancelAll(MinecraftServer server) {
+        for (EventInstance instance : new ArrayList<>(active.values())) {
+            endEvent(server, instance, EventEndReason.CANCELLED);
+        }
     }
 
     private static Optional<SpawnPoint> pickSpawnPoint(MinecraftServer server, EventDefinition definition, RandomSource random) {
@@ -219,6 +239,58 @@ public class EventManager {
         }
 
         return Optional.empty();
+    }
+
+    private static boolean spawnEntity(MinecraftServer server, EventInstance instance) {
+        SpawnPoint point = instance.getSpawnPoint();
+        Optional<String> problem = SpawnChecks.findProblem(server, point);
+
+        if (problem.isPresent()) {
+            NeoConstants.LOGGER.error("Event '{}': spawn point {} no longer usable ({}).",
+                    instance.getDefinitionId(), point, problem.get());
+
+            return false;
+        }
+
+        ServerLevel level = SpawnChecks.resolveLevel(server, point).orElseThrow();
+        String tag = ENTITY_TAG_PREFIX + instance.getInstanceId();
+
+        Optional<? extends Entity> spawned = switch (instance.getDefinition().getSpec()) {
+            case PokemonSpec spec -> CobblemonUtils.spawnWildPokemon(level, spec.species(),
+                    instance.getRolledLevel().getAsInt(), point.x(), point.y(), point.z(),
+                    entity -> entity.addTag(tag));
+
+            case TrainerSpec spec -> {
+                CobblemonPresetTrainers trainer = CobblemonTrainerManager.getTrainer(spec.trainerName());
+
+                if (trainer == null) {
+                    NeoConstants.LOGGER.error("Event '{}': trainer '{}' not found.", instance.getDefinitionId(), spec.trainerName());
+                    yield Optional.empty();
+                }
+
+                yield NPCUtils.spawnTrainer(level, trainer, point.x(), point.y(), point.z(), 0F, npc -> {
+                    npc.addTag(tag);
+                    npc.setInvulnerable(true);
+                });
+            }
+        };
+
+        spawned.ifPresent(entity -> instance.setEntityUuid(entity.getUUID()));
+
+        return spawned.isPresent();
+    }
+
+    private static void removeEntity(MinecraftServer server, EventInstance instance) {
+        instance.getEntityUuid().ifPresent(uuid -> {
+            for (ServerLevel level : server.getAllLevels()) {
+                Entity entity = level.getEntity(uuid);
+
+                if (entity != null) {
+                    entity.discard();
+                    return;
+                }
+            }
+        });
     }
 
     public static void tick(MinecraftServer server) {
