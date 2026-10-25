@@ -42,11 +42,6 @@ public class EventCommand {
                                                 .executes(EventCommand::reloadOption)
                         )
                         .then(
-                                Commands.literal("test")
-                                        .requires(source -> source.hasPermission(2))
-                                                .executes(EventCommand::testOption)
-                        )
-                        .then(
                                 Commands.literal("start")
                                         .requires(source -> source.hasPermission(2))
                                         .then(Commands.argument("eventId", StringArgumentType.word())
@@ -96,35 +91,6 @@ public class EventCommand {
 
         EventManager.getDefinitions().forEach(eventDefinition ->
                 source.sendSuccess(() -> Component.literal("-> " + eventDefinition.getId()), false));
-
-        return 1;
-    }
-
-    public static int testOption(CommandContext<CommandSourceStack> context) {
-        CommandSourceStack source = context.getSource();
-        source.sendSuccess(() -> Component.literal("Testing Methods..."), false);
-
-        if (source.getEntity() instanceof ServerPlayer player) {
-            Optional<NPCEntity> opt = NPCUtils.spawnTrainer(
-                    player.serverLevel(),
-                    CobblemonTrainerManager.getTrainer("Brock"),
-                    player.getX(), player.getY(), player.getZ(),
-                    0F, (npc) -> {
-                        player.sendSystemMessage(Component.literal("Before Spawn"));
-                        npc.addTag("neocobbleleague_event:test");
-                    }
-            );
-
-            if (opt.isEmpty()) {
-                player.sendSystemMessage(Component.literal("Failed to spawn trainer."));
-                return 0;
-            }
-
-            NPCEntity npc = opt.get();
-
-            player.sendSystemMessage(Component.literal("IsPersistenceRequired?: " + npc.isPersistenceRequired()));
-            player.sendSystemMessage(Component.literal("Party?: " + Objects.requireNonNull(npc.getParty())));
-        }
 
         return 1;
     }

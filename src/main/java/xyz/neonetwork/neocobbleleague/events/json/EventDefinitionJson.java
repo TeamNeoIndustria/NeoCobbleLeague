@@ -50,12 +50,13 @@ public final class EventDefinitionJson {
             String spawnMessage = optString(messages, "Spawn", "");
 
             Map<EventEndReason, String> endMessages = parseEndMessages(messages, id);
+            Map<EventEndReason, List<String>> rewards = parseRewards(json, id);
 
             return Optional.of(new EventDefinition(
                     id, displayName, enabled, type,
                     countdownTicks, lifetimeTicks, cooldownTicks, weight,
                     spec, spawnMode, spawnPoints,
-                    announceMessage, spawnMessage, endMessages));
+                    announceMessage, spawnMessage, endMessages, rewards));
         } catch (IllegalArgumentException exception) {
             NeoConstants.LOGGER.error("Skipping event {}: {}", label, exception.getMessage());
         } catch (RuntimeException exception) {
@@ -117,6 +118,20 @@ public final class EventDefinitionJson {
 
         messages.add("End", end);
         json.add("Messages", messages);
+
+        JsonObject rewards = new JsonObject();
+
+        for (EventEndReason reason : EventEndReason.values()) {
+            List<String> commands = definition.getRewards(reason);
+
+            if (!commands.isEmpty()) {
+                JsonArray array = new JsonArray();
+                commands.forEach(array::add);
+                rewards.add(reason.name(), array);
+            }
+        }
+
+        json.add("Rewards", rewards);
 
         return json;
     }
@@ -356,5 +371,58 @@ public final class EventDefinitionJson {
         }
 
         return endMessages;
+    }
+
+    private static Map<EventEndReason, List<String>> parseRewards(JsonObject json, String id) {
+        Map<EventEndReason, List<String>> rewards = new EnumMap<>(EventEndReason.class);
+
+        if (!has(json, "Rewards")) {
+            return rewards;
+        }
+
+        JsonObject rewardsObject = requireObject(json, "Rewards");
+
+        for (Map.Entry<String, JsonElement> entry : rewardsObject.entrySet()) {
+            if (entry.getKey().startsWith("_")) {
+                continue;
+            }
+
+            try {
+                EventEndReason reason = parseEnum(EventEndReason.class, entry.getKey(), "Rewards");
+
+                if (reason != EventEndReason.CAPTURED && reason != EventEndReason.DEFEATED) {
+                    throw new IllegalArgumentException(reason + " has no winning player, so its rewards would never run");
+                }
+
+                JsonArray array = requireArray(rewardsObject, entry.getKey());
+                List<String> commands = new ArrayList<>();
+
+                for (int i = 0; i < array.size(); i++) {
+                    JsonElement element = array.get(i);
+
+                    if (!element.isJsonPrimitive() || !element.getAsJsonPrimitive().isString()) {
+                        throw new IllegalArgumentException("Entry " + i + "must be text.");
+                    }
+
+                    String command = element.getAsString().trim();
+
+                    if (command.startsWith("/")) {
+                        command = command.substring(1);
+                    }
+
+                    if (!command.isEmpty()) {
+                        commands.add(command);
+                    }
+                }
+
+                if (!commands.isEmpty()) {
+                    rewards.put(reason, commands);
+                }
+            } catch (IllegalArgumentException exception) {
+                NeoConstants.LOGGER.warn("Event {}: ignoring rewards entry '{}': {}", id, entry.getKey(), exception.getMessage());
+            }
+        }
+
+        return rewards;
     }
 }

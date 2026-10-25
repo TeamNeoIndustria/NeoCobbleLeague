@@ -8,10 +8,7 @@ import xyz.neonetwork.neocobbleleague.events.specs.EventSpec;
 import xyz.neonetwork.neocobbleleague.events.specs.PokemonSpec;
 import xyz.neonetwork.neocobbleleague.events.specs.TrainerSpec;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
-import java.util.Optional;
+import java.util.*;
 
 public class EventDefinition {
     // Info
@@ -39,13 +36,14 @@ public class EventDefinition {
     private final String announceMessage;
     private final String spawnMessage;
     private final Map<EventEndReason, String> endMessages;
+    private final Map<EventEndReason, List<String>> rewards;
 
     public EventDefinition(String id, String displayName, boolean enabled,
                     EventType type,
                     int countdownTicks, int lifetimeTicks, int cooldownTicks, int weight,
                     EventSpec spec, SpawnMode spawnMode, List<SpawnPoint> spawnPoints,
                     String announceMessage, String spawnMessage,
-                    Map<EventEndReason, String> endMessages) {
+                    Map<EventEndReason, String> endMessages, Map<EventEndReason, List<String>> rewards) {
         if ((type == EventType.POKEMON && spec instanceof TrainerSpec) || (type == EventType.TRAINER && spec instanceof PokemonSpec)) {
             throw new IllegalArgumentException("Cannot have mismatching Type and Specs. [" + id + "]");
         }
@@ -77,6 +75,11 @@ public class EventDefinition {
         this.announceMessage = Objects.requireNonNull(announceMessage, "announceMessage");
         this.spawnMessage = Objects.requireNonNull(spawnMessage, "spawnMessage");
         this.endMessages = Map.copyOf(endMessages);
+
+        Map<EventEndReason, List<String>> rewardsCopy = new EnumMap<>(EventEndReason.class);
+        rewards.forEach((reason, commands) -> rewardsCopy.put(reason, List.copyOf(commands)));
+
+        this.rewards = Collections.unmodifiableMap(rewardsCopy);
     }
 
     public String getDisplayName() {
@@ -133,5 +136,9 @@ public class EventDefinition {
 
     public Optional<String> getEndMessage(EventEndReason reason) {
         return Optional.ofNullable(this.endMessages.get(reason));
+    }
+
+    public List<String> getRewards(EventEndReason reason) {
+        return rewards.getOrDefault(reason, List.of());
     }
 }

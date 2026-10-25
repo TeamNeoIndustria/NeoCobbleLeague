@@ -89,7 +89,7 @@ public class ConfigFile {
         JsonObject configObject = new JsonObject();
         JsonArray eventArray = new JsonArray();
 
-        configObject.addProperty("_comment", "Times are in seconds. Use & for colour codes. {name} = event display name, {player} = the player involved. Type is POKEMON (needs Species + LevelRange) or TRAINER (needs TrainerName, from NeoCobbleLib's trainers.json). Events are ignored while Enabled is false.");
+        configObject.addProperty("_comment", "Times are in seconds. Use & for colour codes. {name} = event display name, {player} = the player involved. Type is POKEMON (needs Species + LevelRange) or TRAINER (needs TrainerName, from NeoCobbleLib's trainers.json). Events are ignored while Enabled is false. Rewards are console commands run when an event ends with a winner (CAPTURED or DEFEATED), with {player} replaced by the winner's name.");
 
         // Pokemon Event
         JsonObject pokemonEvent = new JsonObject();
@@ -135,6 +135,19 @@ public class ConfigFile {
         pokemonMessages.add("End", pokemonEnd);
         pokemonEvent.add("Messages", pokemonMessages);
 
+        JsonObject pokemonRewards = new JsonObject();
+        pokemonRewards.addProperty("_comment", "Commands run as the server console when the event ends with a winner. {player} = the winner's name. Only CAPTURED and DEFEATED have a winner.");
+
+        JsonArray pokemonCaptured = new JsonArray();
+        pokemonCaptured.add("give {player} cobblemon:ultra_ball 5");
+        pokemonRewards.add("CAPTURED", pokemonCaptured);
+
+        JsonArray pokemonDefeated = new JsonArray();
+        pokemonDefeated.add("give {player} cobblemon:rare_candy 3");
+        pokemonRewards.add("DEFEATED", pokemonDefeated);
+
+        pokemonEvent.add("Rewards", pokemonRewards);
+
         eventArray.add(pokemonEvent);
 
         // Trainer Event
@@ -174,6 +187,14 @@ public class ConfigFile {
 
         trainerMessages.add("End", trainerEnd);
         trainerEvent.add("Messages", trainerMessages);
+
+        JsonObject trainerRewards = new JsonObject();
+
+        JsonArray trainerDefeated = new JsonArray();
+        trainerDefeated.add("give {player} cobblemon:rare_candy 5");
+        trainerRewards.add("DEFEATED", trainerDefeated);
+
+        trainerEvent.add("Rewards", trainerRewards);
 
         eventArray.add(trainerEvent);
 

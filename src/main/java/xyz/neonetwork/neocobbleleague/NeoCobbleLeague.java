@@ -1,5 +1,6 @@
 package xyz.neonetwork.neocobbleleague;
 
+import com.cobblemon.mod.common.api.events.CobblemonEvents;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.ModContainer;
@@ -32,6 +33,10 @@ public class NeoCobbleLeague {
 
         // Events
         NeoForge.EVENT_BUS.register(EventListener.class);
+
+        // Cobblemon Events
+        CobblemonEvents.BATTLE_VICTORY.subscribe(EventListener::onWildBattleVictory);
+        CobblemonEvents.POKEMON_CAPTURED.subscribe(EventListener::onPokemonCaptured);
     }
 
     @SubscribeEvent

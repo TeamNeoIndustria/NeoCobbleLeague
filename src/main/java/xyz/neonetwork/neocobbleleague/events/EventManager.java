@@ -1,8 +1,14 @@
 package xyz.neonetwork.neocobbleleague.events;
 
+import com.cobblemon.mod.common.api.battles.model.PokemonBattle;
+import com.cobblemon.mod.common.api.battles.model.actor.BattleActor;
+import com.cobblemon.mod.common.battles.BattleRegistry;
+import com.cobblemon.mod.common.entity.npc.NPCBattleActor;
+import com.cobblemon.mod.common.entity.pokemon.PokemonEntity;
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
+import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -28,11 +34,11 @@ import java.util.*;
 public class EventManager {
 
     private static final String ENTITY_TAG_PREFIX = "neocobbleleague_event:";
-
-    private static volatile Map<String, EventDefinition> definitions = Map.of();
-
     private static final Map<UUID, EventInstance> active = new LinkedHashMap<>();
     private static final Map<String, Long> cooldownEnds = new HashMap<>();
+    private static final long DESPAWN_GRACE_PERIOD = 100;
+
+    private static volatile Map<String, EventDefinition> definitions = Map.of();
 
     public static void loadDefinitions(ConfigFile file) {
         JsonObject root = file.getConfig();
@@ -176,16 +182,36 @@ public class EventManager {
         return remaining;
     }
 
-    public static Optional<EventInstance> findByEntity(UUID entityUuid) {
+    public static Optional<EventInstance> findByUuid(UUID entityUuid) {
         return active.values().stream()
-                .filter(instance -> instance.getEntityUuid().filter(entityUuid::equals).isPresent())
+                .filter(instance -> instance.matches(entityUuid))
                 .findFirst();
     }
 
     public static boolean resolve(MinecraftServer server, UUID entityUuid, ServerPlayer player, EventEndReason reason) {
-        return findByEntity(entityUuid)
-                .map(instance -> endEvent(server, instance, reason, player.getGameProfile().getName()))
+        return findByUuid(entityUuid)
+                .map(instance -> endEvent(server, instance, reason, player))
                 .orElse(false);
+    }
+
+    public static boolean isOrphan(Entity entity) {
+        for (String tag : entity.getTags()) {
+            if (!tag.startsWith(ENTITY_TAG_PREFIX)) {
+                continue;
+            }
+
+            try {
+                UUID instanceId = UUID.fromString(tag.substring(ENTITY_TAG_PREFIX.length()));
+
+                if (!active.containsKey(instanceId)) {
+                    return true;
+                }
+            } catch (IllegalArgumentException exception) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     public static void cancelAll(MinecraftServer server) {
@@ -200,6 +226,12 @@ public class EventManager {
         }
 
         for (EventInstance instance : new ArrayList<>(active.values())) {
+            if (instance.getPhase() == EventPhase.ACTIVE && instance.getEntityGoneAt() >= 0
+                    && server.overworld().getGameTime() - instance.getEntityGoneAt() >= DESPAWN_GRACE_PERIOD) {
+                endEvent(server, instance, EventEndReason.DESPAWNED);
+                continue;
+            }
+
             if (!instance.tick()) {
                 continue;
             }
@@ -215,6 +247,40 @@ public class EventManager {
     public static void clear() {
         active.clear();
         cooldownEnds.clear();
+    }
+
+    public static void onEntityRemoved(UUID uuid, long gameTime) {
+        findByUuid(uuid).ifPresent(instance -> instance.markEntityGone(gameTime));
+    }
+
+    public static void stopBattles(MinecraftServer server, EventInstance instance) {
+        UUID npcUuid = instance.getEntityUuid().orElse(null);
+
+        if (npcUuid == null) {
+            return;
+        }
+
+        for (UUID playerUuid : instance.getParticipants()) {
+            ServerPlayer player = server.getPlayerList().getPlayer(playerUuid);
+
+            if (player == null) {
+                continue;
+            }
+
+            PokemonBattle battle = BattleRegistry.getBattleByParticipatingPlayer(player);
+
+            if (battle == null) {
+                continue;
+            }
+
+            for (BattleActor actor : battle.getActors()) {
+                if (actor instanceof NPCBattleActor npcActor
+                        && npcActor.getNpc().getUUID().equals(npcUuid)) {
+                    battle.stop();
+                    break;
+                }
+            }
+        }
     }
 
     private static boolean advanceEvent(MinecraftServer server, EventInstance instance) {
@@ -244,24 +310,32 @@ public class EventManager {
         return endEvent(server, instance, reason, null);
     }
 
-    private static boolean endEvent(MinecraftServer server, EventInstance instance, EventEndReason reason, String playerName) {
+    private static boolean endEvent(MinecraftServer server, EventInstance instance, EventEndReason reason, ServerPlayer winner) {
         if (!instance.end(reason)) {
             return false;
         }
 
         active.remove(instance.getInstanceId());
 
+        String playerName = winner != null ? winner.getGameProfile().getName() : "someone";
+
         instance.getDefinition().getEndMessage(reason)
-                .ifPresent(message -> broadcast(server, message, instance, playerName != null ? playerName : "someone"));
+                .ifPresent(message -> broadcast(server, message, instance, playerName));
 
         if (reason != EventEndReason.CANCELLED && reason != EventEndReason.SPAWN_FAILED && instance.getDefinition().getCooldownTicks() > 0) {
             cooldownEnds.put(instance.getDefinitionId(),
                     server.overworld().getGameTime() + instance.getDefinition().getCooldownTicks());
         }
 
-
+        if (reason != EventEndReason.CAPTURED && reason != EventEndReason.DEFEATED) {
+            stopBattles(server, instance);
+        }
 
         removeEntity(server, instance);
+
+        if (winner != null) {
+            runRewards(server, instance, reason, winner);
+        }
 
         return true;
     }
@@ -317,7 +391,13 @@ public class EventManager {
             }
         };
 
-        spawned.ifPresent(entity -> instance.setEntityUuid(entity.getUUID()));
+        spawned.ifPresent(entity -> {
+            instance.setEntityUuid(entity.getUUID());
+
+            if (entity instanceof PokemonEntity pokemonEntity) {
+                instance.setPokemonUuid(pokemonEntity.getPokemon().getUuid());
+            }
+        });
 
         return spawned.isPresent();
     }
@@ -333,6 +413,28 @@ public class EventManager {
                 }
             }
         });
+    }
+
+    private static void runRewards(MinecraftServer server, EventInstance instance, EventEndReason reason, ServerPlayer winner) {
+        List<String> commands = instance.getDefinition().getRewards(reason);
+
+        if (commands.isEmpty()) {
+            return;
+        }
+
+        String playerName = winner.getGameProfile().getName();
+        CommandSourceStack source = server.createCommandSourceStack();
+
+        for (String template : commands) {
+            String command = template.replace("{player}", playerName);
+
+            try {
+                server.getCommands().performPrefixedCommand(source, command);
+            } catch (RuntimeException exception) {
+                NeoConstants.LOGGER.error("Event '{}': reward command '{}' failed: {}",
+                        instance.getDefinitionId(), command, exception.toString());
+            }
+        }
     }
 
     private static void broadcast(MinecraftServer server, String template, EventInstance instance, String playerName) {

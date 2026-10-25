@@ -13,12 +13,14 @@ public class EventInstance {
     private final EventDefinition definition;
     private final SpawnPoint spawnPoint;
     private final OptionalInt rolledLevel;
+    private final Set<UUID> participants = new HashSet<>();
 
+    private long entityGoneAt = -1;
     private EventPhase phase;
     private EventEndReason endReason;
     private int ticksRemaining;
     private UUID entityUuid;
-    private final Set<UUID> participants = new HashSet<>();
+    private UUID pokemonUuid;
 
     public EventInstance(EventDefinition definition, SpawnPoint spawnPoint, RandomSource random) {
         this.definition = Objects.requireNonNull(definition, "definition");
@@ -85,8 +87,22 @@ public class EventInstance {
         this.entityUuid = entityUuid;
     }
 
+    public void setPokemonUuid(UUID pokemonUuid) {
+        this.pokemonUuid = pokemonUuid;
+    }
+
     public void addParticipant(UUID playerUuid) {
         participants.add(playerUuid);
+    }
+
+    public void markEntityGone(long gameTime) {
+        if (entityGoneAt < 0) {
+            entityGoneAt = gameTime;
+        }
+    }
+
+    public long getEntityGoneAt() {
+        return entityGoneAt;
     }
 
     public UUID getInstanceId() {
@@ -119,6 +135,10 @@ public class EventInstance {
 
     public boolean isEnded() {
         return phase == EventPhase.ENDED;
+    }
+
+    public boolean matches(UUID uuid) {
+        return uuid != null && (uuid.equals(entityUuid) || uuid.equals(pokemonUuid));
     }
 
     public int getTicksRemaining() {
