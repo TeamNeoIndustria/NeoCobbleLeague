@@ -6,6 +6,7 @@ import com.google.gson.JsonObject;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
 import xyz.neonetwork.neocobbleleague.NeoConstants;
@@ -175,6 +176,47 @@ public class EventManager {
         return remaining;
     }
 
+    public static Optional<EventInstance> findByEntity(UUID entityUuid) {
+        return active.values().stream()
+                .filter(instance -> instance.getEntityUuid().filter(entityUuid::equals).isPresent())
+                .findFirst();
+    }
+
+    public static boolean resolve(MinecraftServer server, UUID entityUuid, ServerPlayer player, EventEndReason reason) {
+        return findByEntity(entityUuid)
+                .map(instance -> endEvent(server, instance, reason, player.getGameProfile().getName()))
+                .orElse(false);
+    }
+
+    public static void cancelAll(MinecraftServer server) {
+        for (EventInstance instance : new ArrayList<>(active.values())) {
+            endEvent(server, instance, EventEndReason.CANCELLED);
+        }
+    }
+
+    public static void tick(MinecraftServer server) {
+        if (active.isEmpty()) {
+            return;
+        }
+
+        for (EventInstance instance : new ArrayList<>(active.values())) {
+            if (!instance.tick()) {
+                continue;
+            }
+
+            switch (instance.getPhase()) {
+                case ANNOUNCED -> advanceEvent(server, instance);
+                case ACTIVE -> endEvent(server, instance, EventEndReason.TIMED_OUT);
+                default -> { }
+            }
+        }
+    }
+
+    public static void clear() {
+        active.clear();
+        cooldownEnds.clear();
+    }
+
     private static boolean advanceEvent(MinecraftServer server, EventInstance instance) {
         if (!instance.advance()) {
             return false;
@@ -199,6 +241,10 @@ public class EventManager {
     }
 
     private static boolean endEvent(MinecraftServer server, EventInstance instance, EventEndReason reason) {
+        return endEvent(server, instance, reason, null);
+    }
+
+    private static boolean endEvent(MinecraftServer server, EventInstance instance, EventEndReason reason, String playerName) {
         if (!instance.end(reason)) {
             return false;
         }
@@ -206,22 +252,18 @@ public class EventManager {
         active.remove(instance.getInstanceId());
 
         instance.getDefinition().getEndMessage(reason)
-                .ifPresent(message -> broadcast(server, message, instance, "someone"));
+                .ifPresent(message -> broadcast(server, message, instance, playerName != null ? playerName : "someone"));
 
         if (reason != EventEndReason.CANCELLED && reason != EventEndReason.SPAWN_FAILED && instance.getDefinition().getCooldownTicks() > 0) {
             cooldownEnds.put(instance.getDefinitionId(),
                     server.overworld().getGameTime() + instance.getDefinition().getCooldownTicks());
         }
 
+
+
         removeEntity(server, instance);
 
         return true;
-    }
-
-    public static void cancelAll(MinecraftServer server) {
-        for (EventInstance instance : new ArrayList<>(active.values())) {
-            endEvent(server, instance, EventEndReason.CANCELLED);
-        }
     }
 
     private static Optional<SpawnPoint> pickSpawnPoint(MinecraftServer server, EventDefinition definition, RandomSource random) {
@@ -291,29 +333,6 @@ public class EventManager {
                 }
             }
         });
-    }
-
-    public static void tick(MinecraftServer server) {
-        if (active.isEmpty()) {
-            return;
-        }
-
-        for (EventInstance instance : new ArrayList<>(active.values())) {
-            if (!instance.tick()) {
-                continue;
-            }
-
-            switch (instance.getPhase()) {
-                case ANNOUNCED -> advanceEvent(server, instance);
-                case ACTIVE -> endEvent(server, instance, EventEndReason.TIMED_OUT);
-                default -> { }
-            }
-        }
-    }
-
-    public static void clear() {
-        active.clear();
-        cooldownEnds.clear();
     }
 
     private static void broadcast(MinecraftServer server, String template, EventInstance instance, String playerName) {

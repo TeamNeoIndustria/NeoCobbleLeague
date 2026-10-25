@@ -1,6 +1,7 @@
 package xyz.neonetwork.neocobbleleague.events;
 
 import com.cobblemon.mod.common.battles.BattleBuilder;
+import com.cobblemon.mod.common.battles.BattleStartResult;
 import com.cobblemon.mod.common.entity.npc.NPCEntity;
 import com.cobblemon.mod.common.pokemon.Pokemon;
 import net.minecraft.network.chat.Component;
@@ -10,8 +11,10 @@ import net.minecraft.world.InteractionResult;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.neoforge.event.entity.player.PlayerInteractEvent;
 import net.neoforged.neoforge.event.server.ServerStoppedEvent;
+import net.neoforged.neoforge.event.server.ServerStoppingEvent;
 import net.neoforged.neoforge.event.tick.ServerTickEvent;
-import xyz.neonetwork.neocobblelib.NeoConstants;
+import xyz.neonetwork.neocobbleleague.NeoConstants;
+import xyz.neonetwork.neocobbleleague.events.enums.EventEndReason;
 import xyz.neonetwork.neocobblelib.battles.events.TrainerBattleEndEvent;
 
 public class EventListener {
@@ -21,16 +24,17 @@ public class EventListener {
     }
 
     @SubscribeEvent
-    public static void onServerStopped(ServerStoppedEvent event) {
+    public static void onServerStopping(ServerStoppingEvent event) {
         EventManager.cancelAll(event.getServer());
+    }
+
+    @SubscribeEvent
+    public static void onServerStopped(ServerStoppedEvent event) {
         EventManager.clear();
     }
 
     @SubscribeEvent
     public static void onNPCInteract(PlayerInteractEvent.EntityInteract event) {
-        if (event.getHand() != InteractionHand.MAIN_HAND) {
-            return;
-        }
         if (!(event.getTarget() instanceof NPCEntity npc)) {
             return;
         }
@@ -44,7 +48,19 @@ public class EventListener {
         event.setCanceled(true);
         event.setCancellationResult(InteractionResult.SUCCESS);
 
-        BattleBuilder.INSTANCE.pvn(player, npc).ifErrored(error -> {
+        if (event.getHand() != InteractionHand.MAIN_HAND) {
+            return;
+        }
+
+        BattleStartResult result = BattleBuilder.INSTANCE.pvn(player, npc);
+
+        result.ifSuccessful(battle -> {
+            EventManager.findByEntity(npc.getUUID())
+                    .ifPresent(instance -> instance.addParticipant(player.getUUID()));
+            return null;
+        });
+
+        result.ifErrored(error -> {
             NeoConstants.LOGGER.error("Could not start trainer battle for {}: {}",
                     player.getGameProfile().getName(), error.getErrors());
             return null;
@@ -53,12 +69,17 @@ public class EventListener {
 
     @SubscribeEvent
     public static void onBattleFinish(TrainerBattleEndEvent event) {
-        NeoConstants.LOGGER.info("Battle Finished. {} {}", event.getOutcome(), event.getPlayer().getDisplayName().getString());
-        event.getPlayer().sendSystemMessage(Component.literal("Battled Finished"));
-
         NPCEntity npcEntity = event.getNpc();
 
-        if (isEventNPC(npcEntity) && npcEntity.getParty() != null) {
+        if (!isEventNPC(npcEntity)) {
+            return;
+        }
+
+        ServerPlayer player = event.getPlayer();
+
+        if (event.getOutcome() == TrainerBattleEndEvent.Outcome.PLAYER_WON) {
+            EventManager.resolve(player.server, npcEntity.getUUID(), player, EventEndReason.DEFEATED);
+        } else if (npcEntity.getParty() != null) {
             npcEntity.getParty().forEach(Pokemon::heal);
         }
     }

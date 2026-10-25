@@ -1,7 +1,6 @@
 package xyz.neonetwork.neocobbleleague.events;
 
 import net.minecraft.util.RandomSource;
-import xyz.neonetwork.neocobbleleague.NeoConstants;
 import xyz.neonetwork.neocobbleleague.events.enums.EventEndReason;
 import xyz.neonetwork.neocobbleleague.events.enums.EventPhase;
 import xyz.neonetwork.neocobbleleague.events.records.SpawnPoint;
