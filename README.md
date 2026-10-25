@@ -8,7 +8,7 @@ It needs Cobblemon 1.7.3, Kotlin for Forge, and NeoCobbleLib 1.1.0 or newer.
 
 An event is a legendary or important Pokemon, or a trainer, that appears at a fixed place in the world for a limited time. Players find it, fight or catch it, and the first to catch or beat it ends the event and can be rewarded.
 
-Each event goes through the same stages. An admin (or nothing else, for now) starts it, a countdown runs with an announcement in chat, the Pokemon or trainer spawns with a spawn message, and then it stays until something ends it. The ways it can end are:
+Each event goes through the same stages. It is started by an admin or by the scheduler, a countdown runs with an announcement in chat, the Pokemon or trainer spawns with a spawn message, and then it stays until something ends it. The ways it can end are:
 
 - CAPTURED: a player caught the Pokemon, with or without a battle.
 - DEFEATED: a player fainted the Pokemon or beat the trainer.
@@ -31,6 +31,16 @@ For a Pokemon event, the Pokemon is a normal wild Pokemon that does not despawn.
 
 For a trainer event, players right-click the trainer to start the fight. The trainer cannot be hurt. Trainer parties come from NeoCobbleLib's trainers.json, and every spawn gets fresh copies of the party so damage does not carry over between fights.
 
+## Scheduler
+
+Events can start by themselves. It is off by default. When it is on, every so often (a random time between MinIntervalSeconds and MaxIntervalSeconds) the mod starts one enabled event, picked by Weight. An event with a weight of 0 is never picked automatically and can only be started by an admin. Events that are already running or on cooldown are skipped, and if the picked event has no usable spawn point another one is tried.
+
+Nothing starts unless at least MinPlayers are online. If there are not enough players when the timer is due, it checks again every 30 seconds.
+
+With OneAtATime on (the default), nothing starts while another event is running, including one an admin started by hand, and the wait before the next event counts from when the last one ended. With it off, events can overlap.
+
+The timer starts again after a reload or a server start, so the first automatic event comes one full interval later.
+
 ## Commands
 
 All of these need permission level 2 and can be used from the console.
@@ -42,11 +52,23 @@ All of these need permission level 2 and can be used from the console.
     /leagueevent skip <id>
     /leagueevent reload
 
-start refuses an event that is disabled, on cooldown, already running, or has no valid spawn point. Adding force ignores the disabled flag and the cooldown. stop cancels a running event. skip ends the countdown early so the event spawns now. reload reads events.json again. Event ids tab-complete.
+start refuses an event that is disabled, on cooldown, already running, or has no valid spawn point. Adding force ignores the disabled flag and the cooldown. stop cancels a running event. skip ends the countdown early so the event spawns now. reload reads events.json again, including the scheduler settings. Event ids tab-complete.
 
 ## Configuration
 
-The file is config/NeoCobbleLeague/events.json. If it is empty, the mod writes two disabled examples, one Pokemon event and one trainer event. Edit them, set Enabled to true, and run /leagueevent reload. A broken event is skipped with a message in the log and does not stop the others from loading.
+The file is config/NeoCobbleLeague/events.json. If it is empty, the mod writes the scheduler settings and two disabled examples, one Pokemon event and one trainer event. Edit them, set Enabled to true, and run /leagueevent reload. A broken event is skipped with a message in the log and does not stop the others from loading.
+
+The scheduler settings sit next to the event list:
+
+    "Scheduler": {
+      "Enabled": false,
+      "MinIntervalSeconds": 1800,
+      "MaxIntervalSeconds": 3600,
+      "MinPlayers": 1,
+      "OneAtATime": true
+    }
+
+If the block is missing the scheduler stays off. If a value is invalid, the log says why and the scheduler stays off. MinIntervalSeconds must be at least 1 and MaxIntervalSeconds at least that. MinPlayers can be 0.
 
 A Pokemon event looks like this:
 
@@ -88,11 +110,11 @@ Notes on the fields:
 - Times are in seconds and can be decimals. Defaults are a 120 second countdown, 900 second lifetime and 3600 second cooldown. Lifetime must be above zero. A countdown of zero spawns the event immediately.
 - Species uses the names from NeoCobbleLib's species list, in lowercase. LevelRange is two whole numbers, minimum and maximum, between 1 and 100.
 - SpawnMode only supports FIXED. If there are several spawn points, one usable point is picked at random each time. A point is skipped if it is outside the world border or height limits, in lava, or blocked by solid blocks. The point is checked again when the countdown ends.
-- Events can also start by themselves. Set Enabled to true in the Scheduler block, and every so often (a random time between MinIntervalSeconds and MaxIntervalSeconds) the mod starts one enabled event, picked by Weight. A weight of 0 keeps an event manual only. Events that are already running or on cooldown are skipped, and nothing starts unless at least MinPlayers are online.
+- Weight only matters to the scheduler. A higher weight is picked more often, and 0 means never automatically.
 - Messages use & for colour codes. {name} is the event's display name and {player} is the winner. Before there is a winner, {player} shows as "someone". Any message left out is not sent.
 - Rewards are console commands run when an event ends with a winner, so only CAPTURED and DEFEATED mean anything. {player} is replaced with the winner's name. A leading slash is optional. A command that fails is logged and the rest still run, so check the console after trying a new reward. Because the commands run as the console, they can call anything on the server, such as an economy plugin, as long as the player is passed by name.
 - Any key starting with an underscore, such as "_comment", is ignored.
 
 ## Not done yet
 
-Player gyms, events starting automatically on a schedule, and saving cooldowns across restarts.
+Player gyms, and saving cooldowns across restarts.
