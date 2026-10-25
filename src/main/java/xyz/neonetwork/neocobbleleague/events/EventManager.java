@@ -48,6 +48,8 @@ public class EventManager {
             return;
         }
 
+        EventScheduler.configure(root.get("Scheduler"));
+
         JsonElement eventsElement = root.get("Events");
 
         if (eventsElement == null || !eventsElement.isJsonArray()) {

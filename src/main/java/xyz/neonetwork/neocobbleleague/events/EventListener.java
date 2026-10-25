@@ -35,6 +35,7 @@ public class EventListener {
     @SubscribeEvent
     public static void onServerTick(ServerTickEvent.Post event) {
         EventManager.tick(event.getServer());
+        EventScheduler.tick(event.getServer());
     }
 
     @SubscribeEvent
@@ -45,6 +46,7 @@ public class EventListener {
     @SubscribeEvent
     public static void onServerStopped(ServerStoppedEvent event) {
         EventManager.clear();
+        EventScheduler.reset();
     }
 
     @SubscribeEvent

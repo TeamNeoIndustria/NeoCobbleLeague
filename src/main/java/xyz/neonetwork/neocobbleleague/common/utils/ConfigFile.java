@@ -198,6 +198,15 @@ public class ConfigFile {
 
         eventArray.add(trainerEvent);
 
+        JsonObject scheduler = new JsonObject();
+        scheduler.addProperty("_comment", "Starts a random enabled event on a timer. Picks by Weight (0 = never picked automatically). Skips events that are running or on cooldown. Needs MinPlayers online. OneAtATime never start an event while another is running (the wait then counts from when the last one ended).");
+        scheduler.addProperty("Enabled", false);
+        scheduler.addProperty("MinIntervalSeconds", 1800);
+        scheduler.addProperty("MaxIntervalSeconds", 3600);
+        scheduler.addProperty("MinPlayers", 1);
+        scheduler.addProperty("OneAtATime", true);
+
+        configObject.add("Scheduler", scheduler);
         configObject.add("Events", eventArray);
 
         pushToFile(configObject);
